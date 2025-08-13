@@ -64,7 +64,7 @@ class SalesWeeklyReportWizard(models.TransientModel):
             # Tipo factura: FC o NC
             tipo_factura = "FC" if move.move_type == "out_invoice" else "NC"
             # Tipo documento: A/B/C de l10n_latam_document_type_id (solo la letra)
-            tipo_documento = move.l10n_latam_document_type_id.code or ""
+            tipo_documento = move.l10n_latam_document_type_id.name or ""
             # Otros campos
             vals = {
                 "wizard_id": self.id,
