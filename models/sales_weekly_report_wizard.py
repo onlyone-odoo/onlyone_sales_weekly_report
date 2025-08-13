@@ -20,6 +20,7 @@ class SalesWeeklyReportWizard(models.TransientModel):
     line_ids = fields.One2many(
         "sales.weekly.report.line", "wizard_id", string="Líneas de Reporte"
     )
+    customer_id = fields.Integer(string="ID Cliente")
 
     def generate_report(self):
         """Generate a weekly sales report for products in selected categories."""
@@ -32,7 +33,7 @@ class SalesWeeklyReportWizard(models.TransientModel):
             .ids
         )
 
-        # Search invoice lines for the selected products and date range
+        # Search invoice lines for the selected products and date range, filtering journals with l10n_ar_is_pos=True
         domain = [
             (
                 "move_id.move_type",
@@ -42,7 +43,13 @@ class SalesWeeklyReportWizard(models.TransientModel):
             ("move_id.state", "=", "posted"),
             ("move_id.invoice_date", ">=", self.date_from),
             ("move_id.invoice_date", "<=", self.date_to),
+            (
+                "move_id.journal_id.l10n_ar_is_pos",
+                "=",
+                True,
+            ),  # Solo diarios con facturas fiscales validadas
             ("product_id", "in", product_ids),
+            ("exclude_from_invoice_tab", "=", False),
         ]
         invoice_lines = self.env["account.move.line"].search(domain)
 
@@ -51,17 +58,19 @@ class SalesWeeklyReportWizard(models.TransientModel):
         for line in invoice_lines:
             move = line.move_id
             partner = move.partner_id
-            # Parsear número de factura: ej. 'FACT-A-0001-00000001' -> punto '0001', numero '00000001'
-            match = re.match(r".*-.*-(\d+)-(\d+)", move.name)
-            punto_venta = match.group(1) if match else ""
+            # Parsear número de factura: ej. 'FA-A 00024-00000188' -> punto '00024', numero '00000188'
+            # Patrón flexible para manejar espacios y guiones
+            match = re.match(r".*-\s*(\d+)-(\d+)", move.name.replace(" ", ""))
+            punto_venta = move.journal_id.l10n_ar_afip_pos_number or ""
             numero_factura = match.group(2) if match else move.name
             # Tipo factura: FC o NC
             tipo_factura = "FC" if move.move_type == "out_invoice" else "NC"
-            # Tipo documento: A/B/C de l10n_latam_document_type_id
+            # Tipo documento: A/B/C de l10n_latam_document_type_id (solo la letra)
             tipo_documento = move.l10n_latam_document_type_id.code or ""
             # Otros campos
             vals = {
                 "wizard_id": self.id,
+                "customer_id": partner.id,
                 "invoice_date": move.invoice_date,
                 "customer_cuit": partner.vat or "",
                 "customer_name": partner.name,
@@ -100,52 +109,61 @@ class SalesWeeklyReportWizard(models.TransientModel):
         """Export the report lines to an XLSX file."""
         import io
         import xlsxwriter
-        import base64  # Agregamos el import para base64
+        import base64  # Para codificar a base64
 
         output = io.BytesIO()
         workbook = xlsxwriter.Workbook(output, {"in_memory": True})
         worksheet = workbook.add_worksheet()
 
-        # Cabeceras del Excel
+        # Formato para fecha en dd/mm/yyyy
+        date_format = workbook.add_format({"num_format": "dd/mm/yyyy"})
+
+        # Cabeceras del Excel en el orden especificado, agregando las 3 nuevas al inicio
         headers = [
-            "NRO.",
+            "ID CLIENTE",
             "RAZON SOCIAL",
             "RUBRO",
-            "CODIGO ARTICULO",
-            "CANT.",
-            "$ PRECIO",
-            "TIPO",
-            "PUNTO",
-            "NUMERO",
+            "CODIGO DEL ARTICULO",
+            "NOMBRE DEL ARTICULO",
+            "CANTIDAD",
+            "PRECIO UNITARIO",
+            "PRECIO DE VENTA DE LA LINEA",
+            "TIPO DE DOCUMENTO (FC NC)",
+            "LETRA DEL TIPO DE DOCUMENTO (A B C)",
+            "PUNTO DE VENTA",
+            "NUMERO FACTURA",
             "FECHA",
-            "CODIGO",
+            "CODIGO POSTAL",
             "LOCALIDAD",
             "PROVINCIA",
             "CUIT",
             "REPRESENTANTE",
-            "TIPO DOCUMENTO",
         ]
         for col_num, header in enumerate(headers):
             worksheet.write(0, col_num, header)
 
-        # Escribir datos de las líneas, con NRO. secuencial
+        # Escribir datos de las líneas, ajustando índices para las nuevas columnas
         for row_num, line in enumerate(self.line_ids, start=1):
-            worksheet.write(row_num, 0, row_num)  # NRO.
-            worksheet.write(row_num, 1, line.customer_name)
-            worksheet.write(row_num, 2, line.rubro)
+            worksheet.write(row_num, 0, line.customer_id)  # ID CLIENTE (nuevo)
+            worksheet.write(row_num, 1, line.customer_name)  # RAZON SOCIAL
+            worksheet.write(row_num, 2, line.rubro)  # RUBRO
             worksheet.write(row_num, 3, line.codigo_articulo)
-            worksheet.write(row_num, 4, line.quantity)
-            worksheet.write(row_num, 5, line.unit_price)
-            worksheet.write(row_num, 6, line.tipo_factura)
-            worksheet.write(row_num, 7, line.punto_venta)
-            worksheet.write(row_num, 8, line.numero_factura)
-            worksheet.write(row_num, 9, line.invoice_date)
-            worksheet.write(row_num, 10, line.zip_code)
-            worksheet.write(row_num, 11, line.city)
-            worksheet.write(row_num, 12, line.province)
-            worksheet.write(row_num, 13, line.customer_cuit)
-            worksheet.write(row_num, 14, line.representante)
-            worksheet.write(row_num, 15, line.tipo_documento)
+            worksheet.write(row_num, 4, line.product_name)
+            worksheet.write(row_num, 5, line.quantity)
+            worksheet.write(row_num, 6, line.unit_price)
+            worksheet.write(row_num, 7, line.total_amount)
+            worksheet.write(row_num, 8, line.tipo_factura)
+            worksheet.write(row_num, 9, line.tipo_documento)
+            worksheet.write(row_num, 10, line.punto_venta)
+            worksheet.write(row_num, 11, line.numero_factura)
+            worksheet.write_datetime(
+                row_num, 12, line.invoice_date, date_format
+            )  # Fecha formateada
+            worksheet.write(row_num, 13, line.zip_code)
+            worksheet.write(row_num, 14, line.city)
+            worksheet.write(row_num, 15, line.province)
+            worksheet.write(row_num, 16, line.customer_cuit)
+            worksheet.write(row_num, 17, line.representante)
 
         workbook.close()
         output.seek(0)
@@ -157,9 +175,7 @@ class SalesWeeklyReportWizard(models.TransientModel):
             {
                 "name": "reporte_ventas_semanal.xlsx",
                 "type": "binary",
-                "datas": base64.b64encode(file_data).decode(
-                    "utf-8"
-                ),  # Codificamos a base64 y convertimos a string
+                "datas": base64.b64encode(file_data).decode("utf-8"),
                 "store_fname": "reporte_ventas_semanal.xlsx",
                 "res_model": self._name,
                 "res_id": self.id,
