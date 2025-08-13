@@ -100,6 +100,7 @@ class SalesWeeklyReportWizard(models.TransientModel):
         """Export the report lines to an XLSX file."""
         import io
         import xlsxwriter
+        import base64  # Agregamos el import para base64
 
         output = io.BytesIO()
         workbook = xlsxwriter.Workbook(output, {"in_memory": True})
@@ -122,7 +123,7 @@ class SalesWeeklyReportWizard(models.TransientModel):
             "PROVINCIA",
             "CUIT",
             "REPRESENTANTE",
-            "TIPO DOCUMENTO",  # Agregamos la columna sin título
+            "TIPO DOCUMENTO",
         ]
         for col_num, header in enumerate(headers):
             worksheet.write(0, col_num, header)
@@ -144,7 +145,7 @@ class SalesWeeklyReportWizard(models.TransientModel):
             worksheet.write(row_num, 12, line.province)
             worksheet.write(row_num, 13, line.customer_cuit)
             worksheet.write(row_num, 14, line.representante)
-            worksheet.write(row_num, 15, line.tipo_documento)  # Tipo A/B/C
+            worksheet.write(row_num, 15, line.tipo_documento)
 
         workbook.close()
         output.seek(0)
@@ -156,7 +157,9 @@ class SalesWeeklyReportWizard(models.TransientModel):
             {
                 "name": "reporte_ventas_semanal.xlsx",
                 "type": "binary",
-                "datas": file_data.encode("base64"),
+                "datas": base64.b64encode(file_data).decode(
+                    "utf-8"
+                ),  # Codificamos a base64 y convertimos a string
                 "store_fname": "reporte_ventas_semanal.xlsx",
                 "res_model": self._name,
                 "res_id": self.id,
