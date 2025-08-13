@@ -43,7 +43,6 @@ class SalesWeeklyReportWizard(models.TransientModel):
             ("move_id.invoice_date", ">=", self.date_from),
             ("move_id.invoice_date", "<=", self.date_to),
             ("product_id", "in", product_ids),
-            ("exclude_from_invoice_tab", "=", False),
         ]
         invoice_lines = self.env["account.move.line"].search(domain)
 
