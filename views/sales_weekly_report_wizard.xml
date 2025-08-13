@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="sales_weekly_report_wizard_form" model="ir.ui.view">
+        <field name="name">sales.weekly.report.wizard.form</field>
+        <field name="model">sales.weekly.report.wizard</field>
+        <field name="arch" type="xml">
+            <form string="Reporte Semanal de Ventas">
+                <sheet>
+                    <group>
+                        <field name="date_from"/>
+                        <field name="date_to"/>
+                        <field name="category_ids" widget="many2many_tags" domain="[('type', '=', 'normal')]"/>
+                    </group>
+                    <footer>
+                        <button name="generate_report" type="object" string="Generar Reporte" class="btn-primary"/>
+                        <button string="Cancelar" class="btn-secondary" special="cancel"/>
+                    </footer>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="sales_weekly_report_wizard_form_with_lines" model="ir.ui.view">
+        <field name="name">sales.weekly.report.wizard.form.lines</field>
+        <field name="model">sales.weekly.report.wizard</field>
+        <field name="inherit_id" ref="sales_weekly_report_wizard_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//sheet" position="inside">
+                <notebook>
+                    <page string="Líneas de Reporte">
+                        <field name="line_ids">
+                            <tree>
+                                <field name="invoice_date"/>
+                                <field name="customer_cuit"/>
+                                <field name="customer_name"/>
+                                <field name="invoice_number"/>
+                                <field name="product_name"/>
+                                <field name="quantity"/>
+                                <field name="unit_price"/>
+                                <field name="total_amount"/>
+                                <field name="zip_code"/>
+                                <field name="city"/>
+                                <field name="province"/>
+                                <!-- Agregamos nuevos campos al tree para visualización -->
+                                <field name="tipo_factura"/>
+                                <field name="tipo_documento"/>
+                                <field name="punto_venta"/>
+                                <field name="numero_factura"/>
+                                <field name="codigo_articulo"/>
+                                <field name="rubro"/>
+                                <field name="representante"/>
+                            </tree>
+                        </field>
+                    </page>
+                </notebook>
+            </xpath>
+            <xpath expr="//footer" position="inside">
+                <button name="export_to_excel" type="object" string="Exportar a Excel" class="btn-primary"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_sales_weekly_report_wizard" model="ir.actions.act_window">
+        <field name="name">Reporte Semanal de Ventas</field>
+        <field name="res_model">sales.weekly.report.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+
+    <menuitem id="menu_sales_weekly_report" 
+              name="Reporte Semanal de Ventas" 
+              parent="account.menu_finance_reports" 
+              action="action_sales_weekly_report_wizard"/>
+</odoo>
