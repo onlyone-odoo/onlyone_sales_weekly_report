@@ -20,7 +20,6 @@ class SalesWeeklyReportWizard(models.TransientModel):
     line_ids = fields.One2many(
         "sales.weekly.report.line", "wizard_id", string="Líneas de Reporte"
     )
-    customer_id = fields.Integer(string="ID Cliente")
 
     def generate_report(self):
         """Generate a weekly sales report for products in selected categories."""
@@ -49,7 +48,6 @@ class SalesWeeklyReportWizard(models.TransientModel):
                 True,
             ),  # Solo diarios con facturas fiscales validadas
             ("product_id", "in", product_ids),
-            ("exclude_from_invoice_tab", "=", False),
         ]
         invoice_lines = self.env["account.move.line"].search(domain)
 
@@ -194,6 +192,7 @@ class SalesWeeklyReportLine(models.TransientModel):
     _description = "Línea de Reporte Semanal de Ventas"
 
     wizard_id = fields.Many2one("sales.weekly.report.wizard", string="Wizard")
+    customer_id = fields.Integer(string="ID Cliente")
     invoice_date = fields.Date(string="Fecha Factura")
     customer_cuit = fields.Char(string="CUIT Cliente")
     customer_name = fields.Char(string="Razón Social")
