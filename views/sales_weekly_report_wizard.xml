@@ -9,7 +9,7 @@
                     <group>
                         <field name="date_from"/>
                         <field name="date_to"/>
-                        <field name="category_ids" widget="many2many_tags" domain="[('type', '=', 'normal')]"/>
+                        <field name="category_ids" widget="many2many_tags"/>
                     </group>
                     <footer>
                         <button name="generate_report" type="object" string="Generar Reporte" class="btn-primary"/>
@@ -41,7 +41,6 @@
                                 <field name="zip_code"/>
                                 <field name="city"/>
                                 <field name="province"/>
-                                <!-- Agregamos nuevos campos al tree para visualización -->
                                 <field name="tipo_factura"/>
                                 <field name="tipo_documento"/>
                                 <field name="punto_venta"/>
